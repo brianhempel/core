@@ -398,6 +398,18 @@ function regionToString(region)
 
 function toString(v)
 {
+  return toString_(v, 7);
+}
+
+function toString_(v, maxDepth)
+{
+  if (maxDepth <= 0)
+  {
+    return '…';
+  } else {
+    maxDepth -= 1;
+  }
+
 	var type = typeof v;
 	if (type === 'function')
 	{
@@ -439,7 +451,7 @@ function toString(v)
 			for (var k in v)
 			{
 				if (k === 'ctor') continue;
-				output.push(toString(v[k]));
+				output.push(toString_(v[k], maxDepth));
 			}
 			return '(' + output.join(',') + ')';
 		}
@@ -452,7 +464,7 @@ function toString(v)
 		if (v.ctor === '_Array')
 		{
 			var list = _elm_lang$core$Array$toList(v);
-			return 'Array.fromList ' + toString(list);
+			return 'Array.fromList ' + toString_(list, maxDepth);
 		}
 
 		if (v.ctor === '<decoder>')
@@ -467,11 +479,11 @@ function toString(v)
 
 		if (v.ctor === '::')
 		{
-			var output = '[' + toString(v._0);
+			var output = '[' + toString_(v._0, maxDepth);
 			v = v._1;
 			while (v.ctor === '::')
 			{
-				output += ',' + toString(v._0);
+				output += ',' + toString_(v._0, maxDepth);
 				v = v._1;
 			}
 			return output + ']';
@@ -484,19 +496,19 @@ function toString(v)
 
 		if (v.ctor === 'Set_elm_builtin')
 		{
-			return 'Set.fromList ' + toString(_elm_lang$core$Set$toList(v));
+			return 'Set.fromList ' + toString_(_elm_lang$core$Set$toList(v), maxDepth);
 		}
 
 		if (v.ctor === 'RBNode_elm_builtin' || v.ctor === 'RBEmpty_elm_builtin')
 		{
-			return 'Dict.fromList ' + toString(_elm_lang$core$Dict$toList(v));
+			return 'Dict.fromList ' + toString_(_elm_lang$core$Dict$toList(v), maxDepth);
 		}
 
 		var output = '';
 		for (var i in v)
 		{
 			if (i === 'ctor') continue;
-			var str = toString(v[i]);
+			var str = toString_(v[i], maxDepth);
 			var c0 = str[0];
 			var parenless = c0 === '{' || c0 === '(' || c0 === '<' || c0 === '"' || str.indexOf(' ') < 0;
 			output += ' ' + (parenless ? str : '(' + str + ')');
@@ -522,7 +534,7 @@ function toString(v)
 		for (var i in keys)
 		{
 			var k = keys[i];
-			output.push(k + ' = ' + toString(v[k]));
+			output.push(k + ' = ' + toString_(v[k], maxDepth));
 		}
 		if (output.length === 0)
 		{
