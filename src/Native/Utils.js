@@ -4,6 +4,8 @@ var _elm_lang$core$Native_Utils = function() {
 
 // COMPARISONS
 
+// This stack mechanism conveniently side-steps the depth-first cycle problems we
+// have to work around in cmp.
 function eq(x, y)
 {
 	var stack = [];
@@ -138,11 +140,30 @@ var LT = -1, EQ = 0, GT = 1;
 
 function cmp(x, y)
 {
-	// This avoids looping forever if someone hacked cycles into the object graph.
+  return cmp_(x, y, []);
+}
+
+// Guaranteed to terminate if object graph we are traversiving is finite.
+// Proof: number of [x,y] pairs is therefore finite so eventually we will
+// hit a pair we've seen before and terminate.
+function cmp_(x, y, priorPairs)
+{
 	if (x === y)
 	{
 		return EQ;
 	}
+
+	// This avoids looping forever if someone hacked cycles into the object graph.
+	// If we get the same x,y as before, that means we will loop for ever.
+	// Return EQ --- they are equal as far as this branch of comparison is concerned.
+	for (var i in priorPairs)
+	{
+		if (x === priorPairs[i][0] && y === priorPairs[i][1])
+		{
+			return EQ;
+		}
+	}
+	var seenPairs = priorPairs.concat([[x, y]]);
 
 	var type = typeof x;
 
@@ -175,7 +196,7 @@ function cmp(x, y)
 		{
 			while (x.ctor === '::' && y.ctor === '::')
 			{
-				var ord = cmp(x._0, y._0);
+				var ord = cmp_(x._0, y._0, seenPairs);
 				if (ord !== EQ)
 				{
 					return ord;
@@ -192,12 +213,12 @@ function cmp(x, y)
 			var n = x.ctor.slice(6) - 0;
 			var err = 'cannot compare tuples with more than 6 elements.';
 			if (n === 0) return EQ;
-			if (n >= 1) { ord = cmp(x._0, y._0); if (ord !== EQ) return ord;
-			if (n >= 2) { ord = cmp(x._1, y._1); if (ord !== EQ) return ord;
-			if (n >= 3) { ord = cmp(x._2, y._2); if (ord !== EQ) return ord;
-			if (n >= 4) { ord = cmp(x._3, y._3); if (ord !== EQ) return ord;
-			if (n >= 5) { ord = cmp(x._4, y._4); if (ord !== EQ) return ord;
-			if (n >= 6) { ord = cmp(x._5, y._5); if (ord !== EQ) return ord;
+			if (n >= 1) { ord = cmp_(x._0, y._0, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 2) { ord = cmp_(x._1, y._1, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 3) { ord = cmp_(x._2, y._2, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 4) { ord = cmp_(x._3, y._3, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 5) { ord = cmp_(x._4, y._4, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 6) { ord = cmp_(x._5, y._5, seenPairs); if (ord !== EQ) return ord;
 			if (n >= 7) throw new Error('Comparison error: ' + err); } } } } } }
 			return EQ;
 		}
@@ -212,14 +233,14 @@ function cmp(x, y)
 			x = _elm_lang$core$Dict$toList(x);
 			y = _elm_lang$core$Dict$toList(y);
 
-			return cmp(x, y);
+			return cmp_(x, y, seenPairs);
 		}
 		if (x.ctor === 'Set_elm_builtin')
 		{
 			x = _elm_lang$core$Set$toList(x);
 			y = _elm_lang$core$Set$toList(y);
 
-			return cmp(x, y);
+			return cmp_(x, y, seenPairs);
 		}
 
 		// Other ADTs
@@ -231,7 +252,7 @@ function cmp(x, y)
 		{
 			if (i === 'ctor') continue;
 
-			ord = cmp(x[i], y[i]);
+			ord = cmp_(x[i], y[i], seenPairs);
 
 			if (ord !== EQ) { return ord; }
 		}
@@ -259,7 +280,7 @@ function cmp(x, y)
 	for (var i in keys)
 	{
 		var k = keys[i];
-		ord = cmp(x[k], y[k]);
+		ord = cmp_(x[k], y[k], seenPairs);
 
 		if (ord !== EQ) { return ord; }
 	}
