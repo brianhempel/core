@@ -4,135 +4,6 @@ var _elm_lang$core$Native_Utils = function() {
 
 // COMPARISONS
 
-// This stack mechanism conveniently side-steps the depth-first cycle problems we
-// have to work around in cmp.
-function eq(x, y)
-{
-	var stack = [];
-	var isEqual = eqHelp(x, y, 0, stack);
-	var pair;
-	while (isEqual && (pair = stack.pop()))
-	{
-		isEqual = eqHelp(pair.x, pair.y, 0, stack);
-	}
-	return isEqual;
-}
-
-
-function eqHelp(x, y, depth, stack)
-{
-	if (depth > 100)
-	{
-		stack.push({ x: x, y: y });
-		return true;
-	}
-
-	if (x === y)
-	{
-		return true;
-	}
-
-	if (typeof x !== 'object')
-	{
-		if (typeof x === 'function')
-		{
-			throw new Error(
-				'Trying to use `(==)` on functions. There is no way to know if functions are "the same" in the Elm sense.'
-				+ ' Read more about this at http://package.elm-lang.org/packages/elm-lang/core/latest/Basics#=='
-				+ ' which describes why it is this way and what the better version will look like.'
-			);
-		}
-		return false;
-	}
-
-	if (x === null || y === null)
-	{
-		return false
-	}
-
-	if (x instanceof Date)
-	{
-		return x.getTime() === y.getTime();
-	}
-
-	if (!('ctor' in x))
-	{
-		var keys = Object.keys(x).sort();
-
-		for (var i in keys)
-		{
-			var k = keys[i];
-			if (!eqHelp(x[k], y[k], depth + 1, stack))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	// convert Dicts and Sets to lists
-	if (x.ctor === 'RBNode_elm_builtin' || x.ctor === 'RBEmpty_elm_builtin')
-	{
-		x = _elm_lang$core$Dict$toList(x);
-		y = _elm_lang$core$Dict$toList(y);
-	}
-	if (x.ctor === 'Set_elm_builtin')
-	{
-		x = _elm_lang$core$Set$toList(x);
-		y = _elm_lang$core$Set$toList(y);
-	}
-
-	// check if lists are equal without recursion
-	if (x.ctor === '::')
-	{
-		var a = x;
-		var b = y;
-		while (a.ctor === '::' && b.ctor === '::')
-		{
-			if (!eqHelp(a._0, b._0, depth + 1, stack))
-			{
-				return false;
-			}
-			a = a._1;
-			b = b._1;
-		}
-		return a.ctor === b.ctor;
-	}
-
-	// check if Arrays are equal
-	if (x.ctor === '_Array')
-	{
-		var xs = _elm_lang$core$Native_Array.toJSArray(x);
-		var ys = _elm_lang$core$Native_Array.toJSArray(y);
-		if (xs.length !== ys.length)
-		{
-			return false;
-		}
-		for (var i = 0; i < xs.length; i++)
-		{
-			if (!eqHelp(xs[i], ys[i], depth + 1, stack))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	if (!eqHelp(x.ctor, y.ctor, depth + 1, stack))
-	{
-		return false;
-	}
-
-	for (var key in x)
-	{
-		if (!eqHelp(x[key], y[key], depth + 1, stack))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
 // Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
 // the particular integer values assigned to LT, EQ, and GT.
 
@@ -140,7 +11,12 @@ var LT = -1, EQ = 0, GT = 1;
 
 function cmp(x, y)
 {
-  return cmp_(x, y, []);
+	return cmp_(x, y, []);
+}
+
+function eq(x, y)
+{
+	return cmp_(x, y, []) === EQ;
 }
 
 // Guaranteed to terminate if object graph we are traversiving is finite.
@@ -190,7 +66,7 @@ function cmp_(x, y, priorPairs)
 
 	// Only Javascript objects past this point.
 
-	if ('ctor' in x)
+	if ('ctor' in x && typeof x.ctor === 'string')
 	{
 		if (x.ctor === '::' || x.ctor === '[]')
 		{
@@ -211,15 +87,25 @@ function cmp_(x, y, priorPairs)
 		{
 			var ord;
 			var n = x.ctor.slice(6) - 0;
-			var err = 'cannot compare tuples with more than 6 elements.';
+			var err = 'cannot compare tuples with more than 16 elements.';
 			if (n === 0) return EQ;
-			if (n >= 1) { ord = cmp_(x._0, y._0, seenPairs); if (ord !== EQ) return ord;
-			if (n >= 2) { ord = cmp_(x._1, y._1, seenPairs); if (ord !== EQ) return ord;
-			if (n >= 3) { ord = cmp_(x._2, y._2, seenPairs); if (ord !== EQ) return ord;
-			if (n >= 4) { ord = cmp_(x._3, y._3, seenPairs); if (ord !== EQ) return ord;
-			if (n >= 5) { ord = cmp_(x._4, y._4, seenPairs); if (ord !== EQ) return ord;
-			if (n >= 6) { ord = cmp_(x._5, y._5, seenPairs); if (ord !== EQ) return ord;
-			if (n >= 7) throw new Error('Comparison error: ' + err); } } } } } }
+			if (n >= 1)  { ord = cmp_(x._0,  y._0,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 2)  { ord = cmp_(x._1,  y._1,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 3)  { ord = cmp_(x._2,  y._2,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 4)  { ord = cmp_(x._3,  y._3,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 5)  { ord = cmp_(x._4,  y._4,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 6)  { ord = cmp_(x._5,  y._5,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 7)  { ord = cmp_(x._6,  y._6,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 8)  { ord = cmp_(x._7,  y._7,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 9)  { ord = cmp_(x._8,  y._8,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 10) { ord = cmp_(x._9,  y._9,  seenPairs); if (ord !== EQ) return ord;
+			if (n >= 11) { ord = cmp_(x._10, y._10, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 12) { ord = cmp_(x._11, y._11, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 13) { ord = cmp_(x._12, y._12, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 14) { ord = cmp_(x._13, y._13, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 15) { ord = cmp_(x._14, y._14, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 16) { ord = cmp_(x._15, y._15, seenPairs); if (ord !== EQ) return ord;
+			if (n >= 17) throw new Error('Comparison error: ' + err); } } } } } } } } } } } } } } } }
 			return EQ;
 		}
 
@@ -247,6 +133,10 @@ function cmp_(x, y, priorPairs)
 		if (x.ctor < y.ctor) { return LT; }
 		if (x.ctor > y.ctor) { return GT; }
 
+		// If you made a record with a string ctor field, you will use
+		// these comparison semenantics which don't sort they keys as
+		// happens in regular record comparison. Just don't make
+		// records with a "ctor " field.
 		var ord;
 		for (var i in x)
 		{
@@ -262,7 +152,9 @@ function cmp_(x, y, priorPairs)
 
 	if (x instanceof Date)
 	{
-		return x == y ? EQ : x < y ? LT : GT;
+		var xt = x.getTime();
+		var yt = y.getTime();
+		return xt === yt ? EQ : xt < yt ? LT : GT;
 	}
 
 	if (x === null || x.elm_web_socket)
